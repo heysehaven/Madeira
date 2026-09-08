@@ -11,15 +11,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: Build App (Unsigned for iOS)
+      - name: Resolve Swift Package Dependencies
+        run: xcodebuild -resolvePackageDependencies
+
+      - name: Build App (Auto-Detect Scheme)
         run: |
+          SCHEME_NAME=$(xcodebuild -list -json | grep -A 10 '"schemes"' | grep '"' | head -n 1 | tr -d '", ')
+          echo "Scheme encontrado: $SCHEME_NAME"
           xcodebuild build \
-            -scheme Madeira \
+            -scheme "$SCHEME_NAME" \
             -derivedDataPath build \
             -sdk iphoneos \
             -configuration Release \
@@ -31,11 +36,11 @@ jobs:
         run: |
           cd build/Build/Products/Release-iphoneos
           mkdir -p Payload
-          cp -R Madeira.app Payload/
+          cp -R *.app Payload/
           zip -r Madeira.ipa Payload
 
       - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Madeira-IPA
           path: build/Build/Products/Release-iphoneos/Madeira.ipa

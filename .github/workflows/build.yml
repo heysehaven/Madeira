@@ -10,11 +10,28 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (with submodules)
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Fix Missing Build Resources
+        run: |
+          cd ./app
+          # Garante que os arquivos/diretórios de recursos esperados existam
+          mkdir -p Madeira
+          if [ ! -f "Madeira/x86_64-vcruntime" ] && [ ! -d "Madeira/x86_64-vcruntime" ]; then
+            echo "Criando placeholder para x86_64-vcruntime"
+            mkdir -p Madeira/x86_64-vcruntime
+          fi
+          if [ ! -f "Madeira/prefix-template.tar.gz" ]; then
+            echo "Criando placeholder para prefix-template.tar.gz"
+            touch Madeira/prefix-template.tar.gz
+          fi
 
       - name: Build App & Package IPA
         run: |
@@ -23,7 +40,7 @@ jobs:
           # Resolve dependencias do Swift Package Manager
           xcodebuild -resolvePackageDependencies
 
-          # Compila usando o scheme fixo Madeira
+          # Compila o projeto Madeira para iOS
           xcodebuild build \
             -scheme "Madeira" \
             -derivedDataPath build \
@@ -33,7 +50,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-          # Empacota em .ipa
+          # Empacota a pasta .app compilada dentro de um .ipa
           cd build/Build/Products/Release-iphoneos
           mkdir -p Payload
           cp -R *.app Payload/

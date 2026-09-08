@@ -16,30 +16,16 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: Find Project Directory & Build
+      - name: Build App & Package IPA
         run: |
-          # Procura onde esta o arquivo do projeto (.xcodeproj ou .xcworkspace)
-          PROJ_PATH=$(find . -maxdepth 3 -name "*.xcodeproj" -o -name "*.xcworkspace" | head -n 1)
-          
-          if [ -z "$PROJ_PATH" ]; then
-            echo "Erro: Nenhum projeto Xcode encontrado no repositório."
-            exit 1
-          fi
-          
-          PROJ_DIR=$(dirname "$PROJ_PATH")
-          echo "Projeto encontrado na pasta: $PROJ_DIR"
-          cd "$PROJ_DIR"
+          cd ./app
 
-          # Resolve dependencias
+          # Resolve dependencias do Swift Package Manager
           xcodebuild -resolvePackageDependencies
 
-          # Detecta o Scheme automaticamente
-          SCHEME_NAME=$(xcodebuild -list -json | grep -A 10 '"schemes"' | grep '"' | head -n 1 | tr -d '", ')
-          echo "Scheme detectado: $SCHEME_NAME"
-
-          # Compila o projeto
+          # Compila usando o scheme fixo Madeira
           xcodebuild build \
-            -scheme "$SCHEME_NAME" \
+            -scheme "Madeira" \
             -derivedDataPath build \
             -sdk iphoneos \
             -configuration Release \
@@ -57,4 +43,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: Madeira-IPA
-          path: "**/build/Build/Products/Release-iphoneos/Madeira.ipa"
+          path: app/build/Build/Products/Release-iphoneos/Madeira.ipa

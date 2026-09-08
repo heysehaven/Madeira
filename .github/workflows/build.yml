@@ -1,26 +1,41 @@
-name: Build Madeira IPA
+name: Build iOS IPA
 
 on:
+  push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
-    - name: Checkout repository with submodules
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Xcode version
-      run: |
-        sudo xcode-select -s /Applications/Xcode.app
-        xcodebuild -version
+      - name: Set Xcode version
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-    - name: Build placeholder instructions
-      run: |
-        echo "Ambiente macOS pronto. Aqui entram os scripts de build do Madeira."
-        # Como o projeto possui scripts internos de compilação em build/, 
-        # você pode apontar para eles caso queira testar a compilação inicial.
-        ls -la
+      - name: Build App (Unsigned for iOS)
+        run: |
+          xcodebuild build \
+            -scheme Madeira \
+            -derivedDataPath build \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package IPA
+        run: |
+          cd build/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -R Madeira.app Payload/
+          zip -r Madeira.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Madeira-IPA
+          path: build/Build/Products/Release-iphoneos/Madeira.ipa

@@ -48,7 +48,9 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
-            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
+            SWIFT_OBJC_BRIDGING_HEADER="Madeira/Madeira-Bridging-Header.h" \
+            OTHER_SWIFT_FLAGS="-suppress-warnings"
 
           cd build/Build/Products/Release-iphoneos
           mkdir -p Payload

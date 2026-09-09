@@ -27,17 +27,10 @@ jobs:
         with:
           xcode-version: '26.6'
 
-      - name: Debug - Inspect Xcode project structure
+      - name: Debug - Show existing build settings for Madeira target
         run: |
           cd app
-          echo "=== Targets e schemes do projeto ==="
-          xcodebuild -list -project Madeira.xcodeproj 2>&1 || xcodebuild -list -workspace Madeira.xcworkspace 2>&1
-          echo "=== Todos os targets nomeados no pbxproj ==="
-          grep -B 2 "productType" Madeira.xcodeproj/project.pbxproj | grep -i "name ="
-          echo "=== Run Script Build Phases (se existirem) ==="
-          grep -A 8 "shellScript" Madeira.xcodeproj/project.pbxproj
-          echo "=== Referencias a FEX no pbxproj ==="
-          grep -i "fex" Madeira.xcodeproj/project.pbxproj | head -40
+          xcodebuild -showBuildSettings -scheme "Madeira" -sdk iphoneos -configuration Release 2>&1 | grep -iE "HEADER_SEARCH_PATHS|SYSTEM_HEADER_SEARCH_PATHS|FRAMEWORK_SEARCH_PATHS|OTHER_CPLUSPLUSFLAGS|IPHONEOS_DEPLOYMENT_TARGET"
 
       - name: Verify Uploaded Resources
         run: |
@@ -58,11 +51,6 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             SKIP_INSTALL=NO \
-            BUILD_LIBRARY_FOR_DISTRIBUTION=NO \
-            CLANG_CXX_LANGUAGE_STANDARD="gnu++17" \
-            CLANG_CXX_LIBRARY="libc++" \
-            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/**" \
-            SYSTEM_HEADER_SEARCH_PATHS="$(PWD)/../FEX/FEXCore/include $(PWD)/../FEX/FEXCore/Source $(PWD)/../FEX/Source $(PWD)/../FEX/FEXHeaderUtils/include $(PWD)/../FEX/CodeEmitter/include $(PWD)/../FEX/External/fmt/include $(PWD)/../FEX/External/xxhash $(PWD)/../FEX/External/range-v3/include $(PWD)/../FEX/External/unordered_dense/include $(PWD)/../FEX/External/zydis/include $(PWD)/../FEX/External/Vulkan-Headers/include $(PWD)/../FEX/External/SoftFloat-3e $(PWD)/../FEX/External/tiny-json $(PWD)/../FEX/External/cephes $(PWD)/../FEX/External/drm-headers/include $(PWD)/../FEX/External/vixl/src" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \

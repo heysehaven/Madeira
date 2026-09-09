@@ -19,34 +19,30 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: Clean & Fix Missing Build Resources
+      - name: Prepare Resources for Bridging Header
         run: |
           cd ./app
-          mkdir -p Madeira
           
-          # Se x86_64-vcruntime for um diretório (criado anteriormente), remove
-          if [ -d "Madeira/x86_64-vcruntime" ]; then
-            rm -rf Madeira/x86_64-vcruntime
-          fi
+          # Remove limpo qualquer tentativa anterior
+          rm -rf Madeira/x86_64-vcruntime
           
-          # Cria os arquivos vazios (placeholders) que o Xcode exige no bundle
-          if [ ! -f "Madeira/x86_64-vcruntime" ]; then
-            echo "Criando arquivo placeholder para x86_64-vcruntime"
-            touch Madeira/x86_64-vcruntime
-          fi
+          # Cria x86_64-vcruntime como pasta com arquivo valido dentro para nao quebrar o PCH
+          mkdir -p Madeira/x86_64-vcruntime
+          echo "placeholder" > Madeira/x86_64-vcruntime/dummy.txt
           
+          # Garante o prefix-template
           if [ ! -f "Madeira/prefix-template.tar.gz" ]; then
-            echo "Criando arquivo placeholder para prefix-template.tar.gz"
             touch Madeira/prefix-template.tar.gz
           fi
 
-      - name: Build App & Package IPA
+      - name: Build App & Capture Errors
         run: |
           cd ./app
 
           xcodebuild -resolvePackageDependencies
 
-          xcodebuild build \
+          # Roda o xcodebuild limpo para forçar a regeração do PCH (Bridging Header)
+          xcodebuild clean build \
             -scheme "Madeira" \
             -derivedDataPath build \
             -sdk iphoneos \
@@ -54,16 +50,23 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/**" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
-            OTHER_SWIFT_FLAGS="-suppress-warnings"
+            OTHER_SWIFT_FLAGS="-suppress-warnings" 2>&1 | tee xcodebuild.log || true
 
-          cd build/Build/Products/Release-iphoneos
-          mkdir -p Payload
-          cp -R *.app Payload/
-          zip -r Madeira.ipa Payload
+          # Se o .app foi gerado, empacota
+          if [ -d "build/Build/Products/Release-iphoneos/Madeira.app" ]; then
+            cd build/Build/Products/Release-iphoneos
+            mkdir -p Payload
+            cp -R *.app Payload/
+            zip -r Madeira.ipa Payload
+          else
+            echo "================ MOTIVO REAL DA FALHA NO BRIDGING HEADER ================"
+            grep -B 3 -A 10 "error:" xcodebuild.log | head -n 40
+            echo "=========================================================================="
+            exit 1
+          fi
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v5

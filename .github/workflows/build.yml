@@ -543,8 +543,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             build
 
-- name: Force increased-memory-limit (Info.plist + Entitlements)
-        run: |
+            - name: Force increased-memory-limit (Info.plist + Entitlements)
+           run: |
           set -euxo pipefail
           APP_DIR="out/Madeira.app"
           PLIST="$APP_DIR/Info.plist"

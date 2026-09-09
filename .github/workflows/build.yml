@@ -1,110 +1,37 @@
-name: Build iOS IPA
-
-on:
-  push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: macos-26
-
-    steps:
-      - name: Checkout repository (with submodules)
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Force-init nested submodules inside FEX (safety net)
+      - name: Gerar ConfigValues.inl / ConfigOptions.inl (multi-estratégia + diagnóstico)
         run: |
-          cd FEX
-          git submodule update --init --recursive
-          cd ..
-                - name: Generate FEXCore ConfigValues.inl / ConfigOptions.inl
-        run: |
-          set -e
+          set +e  # não mata o job, queremos ver todos os diagnósticos
+
+          echo "############################################"
+          echo "### 1) Conteúdo do config_generator.py"
+          echo "############################################"
+          find FEX -iname "config_generator.py" -exec echo "Encontrado em: {}" \; -exec cat {} \;
+
+          echo "############################################"
+          echo "### 2) Trecho do CMakeLists.txt que gera os .inl"
+          echo "############################################"
+          grep -rn -B5 -A15 "ConfigValues.inl\|ConfigOptions.inl" FEX/FEXCore/Source/CMakeLists.txt FEX/FEXCore/CMakeLists.txt FEX/CMakeLists.txt 2>/dev/null
+
+          echo "############################################"
+          echo "### 3) Tentativa: configurar CMake do FEX (host)"
+          echo "############################################"
           mkdir -p fex-gen-build
-          # Configura o FEXCore via CMake só pra disparar a geração de código (Config.json -> .inl)
           cmake -S FEX -B fex-gen-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=False \
-            -DENABLE_ASSERTIONS=False \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_C_COMPILER=clang
+            -DENABLE_ASSERTIONS=False 2>&1 | tail -n 100
 
-          # Roda só a etapa de geração (ninja permite pedir um arquivo de saída específico como target)
-          cd fex-gen-build
-          ninja $(grep -rlZ "ConfigValues.inl" . --include=build.ninja | head -n1 >/dev/null; find . -path "*Config/ConfigValues.inl") 2>/dev/null || ninja all -k 0 || true
+          echo "############################################"
+          echo "### 4) Tentativa: rodar ninja e listar o que foi gerado"
+          echo "############################################"
+          (cd fex-gen-build && ninja -k 0 2>&1 | tail -n 150)
+          find fex-gen-build -iname "ConfigValues.inl" -o -iname "ConfigOptions.inl"
 
-          echo "=== Procurando os .inl gerados ==="
-          find fex-gen-build -name "ConfigValues.inl" -o -name "ConfigOptions.inl"
+          echo "############################################"
+          echo "### 5) Build Phases do projeto Xcode relacionadas a Config"
+          echo "############################################"
+          grep -n -B3 -A15 "ConfigValues\|config_generator\|shellScript" app/Madeira.xcodeproj/project.pbxproj | grep -i -B10 -A5 "config" 
 
-      - name: Copiar headers gerados para dentro do submódulo FEX
-        run: |
-          set -e
-          SRC_INL=$(find fex-gen-build -name "ConfigValues.inl" | head -n1)
-          SRC_OPT=$(find fex-gen-build -name "ConfigOptions.inl" | head -n1)
-          DEST_DIR="FEX/FEXCore/include/FEXCore/Config"
-          mkdir -p "$DEST_DIR"
-          cp "$SRC_INL" "$DEST_DIR/ConfigValues.inl"
-          cp "$SRC_OPT" "$DEST_DIR/ConfigOptions.inl"
-          echo "=== Confirmando que os arquivos estao no lugar esperado pelo Xcode ==="
-          ls -la "$DEST_DIR"
-      - name: Set Xcode version
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '26.6'
-
-      - name: Debug - Show existing build settings for Madeira target
-        run: |
-          cd app
-          xcodebuild -showBuildSettings -scheme "Madeira" -sdk iphoneos -configuration Release 2>&1 | grep -iE "HEADER_SEARCH_PATHS|SYSTEM_HEADER_SEARCH_PATHS|FRAMEWORK_SEARCH_PATHS|OTHER_CPLUSPLUSFLAGS|IPHONEOS_DEPLOYMENT_TARGET"
-      - name: Verify Uploaded Resources
-        run: |
-          cd ./app/Madeira
-          echo "=== Arquivos na pasta Madeira ==="
-          ls -la
-      - name: Build App (Archive)
-        run: |
-          cd ./app
-          xcodebuild -resolvePackageDependencies
-          xcodebuild archive \
-            -scheme "Madeira" \
-            -archivePath build/Madeira.xcarchive \
-            -sdk iphoneos \
-            -configuration Release \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            SKIP_INSTALL=NO \
-            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
-            WARNING_CFLAGS="-w" \
-            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
-            OTHER_SWIFT_FLAGS="-suppress-warnings" 2>&1 | tee xcodebuild.log || true
-          if [ -d "build/Madeira.xcarchive/Products/Applications/Madeira.app" ]; then
-            echo "Archive concluido com sucesso!"
-          else
-            echo "================ ERRO EXATO DA FALHA NA COMPILACAO ================"
-            grep -i -C 3 "error:" xcodebuild.log || tail -n 80 xcodebuild.log
-            echo "==================================================================="
-            exit 1
-          fi
-      - name: Fix Executable Permissions and Package IPA
-        run: |
-          cd app/build/Madeira.xcarchive/Products/Applications
-          chmod -R 755 Madeira.app/
-          find Madeira.app -type f -exec chmod +x {} +
-          rm -rf Madeira.app/_CodeSignature
-          export COPYFILE_DISABLE=1
-          mkdir -p Payload
-          cp -R Madeira.app Payload/
-          find Payload -name "._*" -delete
-          zip -r -y Madeira.ipa Payload
-          echo "=== Tamanho do IPA gerado ==="
-          du -h Madeira.ipa
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: Madeira-IPA
-          path: app/build/Madeira.xcarchive/Products/Applications/Madeira.ipa
+          echo "############################################"
+          echo "### FIM DO DIAGNOSTICO - job continua normalmente ###"
+          echo "############################################"

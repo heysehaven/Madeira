@@ -19,16 +19,24 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: Fix Missing Build Resources
+      - name: Clean & Fix Missing Build Resources
         run: |
           cd ./app
           mkdir -p Madeira
-          if [ ! -f "Madeira/x86_64-vcruntime" ] && [ ! -d "Madeira/x86_64-vcruntime" ]; then
-            echo "Criando placeholder para x86_64-vcruntime"
-            mkdir -p Madeira/x86_64-vcruntime
+          
+          # Se x86_64-vcruntime for um diretório (criado anteriormente), remove
+          if [ -d "Madeira/x86_64-vcruntime" ]; then
+            rm -rf Madeira/x86_64-vcruntime
           fi
+          
+          # Cria os arquivos vazios (placeholders) que o Xcode exige no bundle
+          if [ ! -f "Madeira/x86_64-vcruntime" ]; then
+            echo "Criando arquivo placeholder para x86_64-vcruntime"
+            touch Madeira/x86_64-vcruntime
+          fi
+          
           if [ ! -f "Madeira/prefix-template.tar.gz" ]; then
-            echo "Criando placeholder para prefix-template.tar.gz"
+            echo "Criando arquivo placeholder para prefix-template.tar.gz"
             touch Madeira/prefix-template.tar.gz
           fi
 
@@ -46,10 +54,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/**" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
-            SWIFT_OBJC_BRIDGING_HEADER="Madeira/Madeira-Bridging-Header.h" \
             OTHER_SWIFT_FLAGS="-suppress-warnings"
 
           cd build/Build/Products/Release-iphoneos

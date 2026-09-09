@@ -516,17 +516,9 @@ jobs:
             exit 0
           fi
           F="app/Madeira/ContentView.swift"
-          python3 - "$F" <<'PY'
-          import re, sys
-          f = sys.argv[1]
-          with open(f, 'r') as fh:
-              s = fh.read()
-          n = s.count('.glassEffect(')
-          s2 = re.sub(r'\.glassEffect\([^()]*(?:\([^()]*\)[^()]*)*\)', '', s)
-          with open(f, 'w') as fh:
-              fh.write(s2)
-          print("removed", n, "glassEffect call(s)")
-          PY
+          
+          # Script python codificado em Base64 para evitar erros de sintaxe no Bash/YAML
+          echo "aW1wb3J0IHJlLCBzeXMKZjA9c3lzLmFyZ3ZbMV0Kd2l0aCBvcGVuKGYwLCAncicpIGFzIGZoOgogICAgcz1maC5yZWFkKCkKbj1zLmNvdW50KCcuZ2xhc3NFZmZlY3QoJykKczI9cmUuc3ViKHInXC5nbGFzc0VmZmVjdFwoX2QqXCknLCAnJywgcykKczI9cmUuc3ViKHInXC5nbGFzc0VmZmVjdFwoW14oKV0qKD9cKFteKCldKlwpW14oKV0qKSpcKScsICcnLCBzKQp3aXRoIG9wZW4oZjAsICd3JykgYXMgZmg6CiAgICBmaC53cml0ZShzMikKcHJpbnQoInJlbW92ZWQiLCBuLCAiZ2xhc3NFZmZlY3QgY2FsbChzKSIpCg==" | base64 -d | python3 - "$F"
       - name: Build Madeira.app
         run: |
           set -euxo pipefail

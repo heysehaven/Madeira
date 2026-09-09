@@ -19,7 +19,6 @@ jobs:
     timeout-minutes: 350
 
     steps:
-
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -515,11 +514,22 @@ jobs:
             echo "SDK supports glassEffect; leaving source untouched"
             exit 0
           fi
-          F="app/Madeira/ContentView.swift"
-          sed -i '' -E 's/\.glassEffect\([^)]*\)//g' "$F"
-          echo "glassEffect calls removed successfully"
-            - name: Build Madeira.app
-          run: |
+          F=app/Madeira/ContentView.swift
+          grep -n "glassEffect" "$F" || true
+          python3 - "$F" <<'PY'
+          import re, sys
+          f = sys.argv[1]
+          s = open(f).read()
+          n = s.count('.glassEffect(')
+          s2 = re.sub(r'\.glassEffect\([^()]*(?:\([^()]*\)[^()]*)*\)', '', s)
+          open(f, 'w').write(s2)
+          print('removed %d glassEffect call(s); %d remain'
+                % (n, s2.count('.glassEffect(')))
+          PY
+          grep -n "glassEffect" "$F" && { echo "FATAL: calls remain"; exit 1; } || true
+
+      - name: Build Madeira.app
+        run: |
           set -euxo pipefail
           rm -rf out
           xcodebuild \
@@ -532,8 +542,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             build
 
-           - name: Apply increased-memory-limit (Info.plist + Entitlements)
-          run: |
+      - name: Apply increased-memory-limit (Info.plist + Entitlements)
+        run: |
           set -euxo pipefail
           APP_DIR="out/Madeira.app"
           PLIST="$APP_DIR/Info.plist"

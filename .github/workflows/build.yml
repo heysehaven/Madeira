@@ -19,6 +19,12 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Verify Uploaded Resources
+        run: |
+          cd ./app/Madeira
+          echo "Verificando se os binarios reais existem na pasta:"
+          ls -la x86_64-vcruntime prefix-template.tar.gz || true
+
       - name: Build App & Package IPA
         run: |
           cd ./app

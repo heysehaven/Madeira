@@ -543,12 +543,24 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             build
 
-      - name: Apply increased-memory-limit entitlement (ldid)
+- name: Force increased-memory-limit (Info.plist + Entitlements)
         run: |
           set -euxo pipefail
-          BIN="out/Madeira.app/Madeira"
-          test -f "$BIN"
+          APP_DIR="out/Madeira.app"
+          PLIST="$APP_DIR/Info.plist"
+          BIN="$APP_DIR/Madeira"
 
+          test -f "$BIN"
+          test -f "$PLIST"
+
+          echo "=== 1. Injetando chave no Info.plist ==="
+          plutil -insert UIApplicationSupportsIncreasedMemoryLimit -bool true "$PLIST" \
+            || plutil -replace UIApplicationSupportsIncreasedMemoryLimit -bool true "$PLIST"
+          
+          echo "=== Verificando Info.plist ==="
+          plutil -p "$PLIST" | grep -i "IncreasedMemoryLimit" || true
+
+          echo "=== 2. Criando arquivo de Entitlements completo ==="
           cat > /tmp/Madeira.entitlements <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -556,16 +568,16 @@ jobs:
           <dict>
           	<key>com.apple.developer.kernel.increased-memory-limit</key>
           	<true/>
+          	<key>ExtendedMemoryVirtualAddressing</key>
+          	<true/>
           </dict>
           </plist>
           EOF
 
-          echo "=== entitlements ANTES ==="
-          ldid -e "$BIN" || echo "(binario ainda sem entitlements, ok)"
-
+          echo "=== 3. Assinando binario via ldid ==="
           ldid -S/tmp/Madeira.entitlements "$BIN"
 
-          echo "=== entitlements DEPOIS ==="
+          echo "=== Entitlements aplicados no binario ==="
           ldid -e "$BIN"
 
       - name: Package IPA

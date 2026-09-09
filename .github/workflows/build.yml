@@ -1,37 +1,33 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Force-init nested submodules inside FEX (safety net)
+        run: |
+          cd FEX
+          git submodule update --init --recursive
+          cd ..
+
+      # <<< AQUI, dentro da MESMA lista de steps, com o MESMO recuo (6 espaços antes do "-") >>>
       - name: Gerar ConfigValues.inl / ConfigOptions.inl (multi-estratégia + diagnóstico)
         run: |
-          set +e  # não mata o job, queremos ver todos os diagnósticos
+          set +e
+          ...
 
-          echo "############################################"
-          echo "### 1) Conteúdo do config_generator.py"
-          echo "############################################"
-          find FEX -iname "config_generator.py" -exec echo "Encontrado em: {}" \; -exec cat {} \;
-
-          echo "############################################"
-          echo "### 2) Trecho do CMakeLists.txt que gera os .inl"
-          echo "############################################"
-          grep -rn -B5 -A15 "ConfigValues.inl\|ConfigOptions.inl" FEX/FEXCore/Source/CMakeLists.txt FEX/FEXCore/CMakeLists.txt FEX/CMakeLists.txt 2>/dev/null
-
-          echo "############################################"
-          echo "### 3) Tentativa: configurar CMake do FEX (host)"
-          echo "############################################"
-          mkdir -p fex-gen-build
-          cmake -S FEX -B fex-gen-build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=False \
-            -DENABLE_ASSERTIONS=False 2>&1 | tail -n 100
-
-          echo "############################################"
-          echo "### 4) Tentativa: rodar ninja e listar o que foi gerado"
-          echo "############################################"
-          (cd fex-gen-build && ninja -k 0 2>&1 | tail -n 150)
-          find fex-gen-build -iname "ConfigValues.inl" -o -iname "ConfigOptions.inl"
-
-          echo "############################################"
-          echo "### 5) Build Phases do projeto Xcode relacionadas a Config"
-          echo "############################################"
-          grep -n -B3 -A15 "ConfigValues\|config_generator\|shellScript" app/Madeira.xcodeproj/project.pbxproj | grep -i -B10 -A5 "config" 
-
-          echo "############################################"
-          echo "### FIM DO DIAGNOSTICO - job continua normalmente ###"
-          echo "############################################"
+      - name: Set Xcode version
+        uses: maxim-lobanov/setup-xcode@v1
+        ...

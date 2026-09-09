@@ -1,41 +1,3 @@
-name: Build iOS IPA
-
-on:
-  push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: macos-26
-
-    steps:
-      - name: Checkout repository (with submodules)
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Force-init nested submodules inside FEX (safety net)
-        run: |
-          cd FEX
-          git submodule update --init --recursive
-          cd ..
-
-      - name: Set Xcode version
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '26.6'
-
-      - name: List available Xcode versions (debug)
-        run: ls /Applications | grep Xcode
-
-      - name: Verify Uploaded Resources
-        run: |
-          cd ./app/Madeira
-          echo "=== Arquivos na pasta Madeira ==="
-          ls -la
-
       - name: Build App (Archive)
         run: |
           cd ./app
@@ -54,7 +16,8 @@ jobs:
             BUILD_LIBRARY_FOR_DISTRIBUTION=NO \
             CLANG_CXX_LANGUAGE_STANDARD="gnu++17" \
             CLANG_CXX_LIBRARY="libc++" \
-            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/** $(PWD)/../FEX $(PWD)/../FEX/FEXCore/include $(PWD)/../FEX/FEXCore/Source $(PWD)/../FEX/Source $(PWD)/../FEX/External/** $(PWD)/../FEX/FEXHeaderUtils/include $(PWD)/../FEX/CodeEmitter/include" \
+            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/**" \
+            SYSTEM_HEADER_SEARCH_PATHS="$(PWD)/../FEX/FEXCore/include $(PWD)/../FEX/FEXCore/Source $(PWD)/../FEX/Source $(PWD)/../FEX/FEXHeaderUtils/include $(PWD)/../FEX/CodeEmitter/include $(PWD)/../FEX/External/fmt/include $(PWD)/../FEX/External/xxhash $(PWD)/../FEX/External/range-v3/include $(PWD)/../FEX/External/unordered_dense/include $(PWD)/../FEX/External/zydis/include $(PWD)/../FEX/External/Vulkan-Headers/include $(PWD)/../FEX/External/SoftFloat-3e $(PWD)/../FEX/External/tiny-json $(PWD)/../FEX/External/cephes $(PWD)/../FEX/External/drm-headers/include $(PWD)/../FEX/External/vixl/src" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
@@ -68,31 +31,3 @@ jobs:
             echo "==================================================================="
             exit 1
           fi
-
-      - name: Fix Executable Permissions & Package IPA
-        run: |
-          cd app/build/Madeira.xcarchive/Products/Applications
-
-          chmod -R 755 Madeira.app/
-          find Madeira.app -type f -exec chmod +x {} +
-
-          rm -rf Madeira.app/_CodeSignature
-
-          export COPYFILE_DISABLE=1
-          mkdir -p Payload
-          cp -R Madeira.app Payload/
-          find Payload -name "._*" -delete
-
-          zip -r -y Madeira.ipa Payload
-
-          echo "=== Tamanho do IPA gerado ==="
-          du -h Madeira.ipa
-
-          echo "=== Conteúdo do IPA (checagem de frameworks embutidos) ==="
-          unzip -l Madeira.ipa | grep -i framework || echo "Nenhum framework encontrado - verifique se é esperado"
-
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: Madeira-IPA
-          path: app/build/Madeira.xcarchive/Products/Applications/Madeira.ipa

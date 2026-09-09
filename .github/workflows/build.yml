@@ -16,18 +16,32 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Debug - Find FEXCore build system
+      - name: Force-init nested submodules inside FEX (safety net)
         run: |
-          echo "=== CMakeLists.txt no FEX ==="
+          cd FEX
+          git submodule update --init --recursive
+          cd ..
+
+      - name: Debug - Find FEX iOS build system
+        run: |
+          echo "=== Onde fica a lib fmt ==="
+          find . -iname "format.h" -path "*fmt*" 2>/dev/null | grep -v "/.git/"
+          echo "=== Pasta External do FEX (deps vendorizadas) ==="
+          ls -la ./FEX/External/ 2>/dev/null
+          echo "=== Submódulos DENTRO do FEX (aninhados) ==="
+          cat ./FEX/.gitmodules 2>/dev/null || echo "Sem .gitmodules dentro do FEX"
+          echo "=== Scripts na raiz do FEX ==="
+          find ./FEX -maxdepth 1 -type f \( -iname "*.sh" -o -iname "*.py" -o -iname "*.cmake" \)
+          echo "=== CMakeLists.txt do FEX ==="
           find ./FEX -maxdepth 2 -iname "CMakeLists.txt"
-          echo "=== Scripts de build no FEX ==="
-          find ./FEX -iname "*.sh" -path "*ios*" -o -iname "build*.sh" 2>/dev/null | grep -i fex
-          echo "=== READMEs relevantes ==="
-          find ./FEX -maxdepth 1 -iname "README*"
-          echo "=== Bibliotecas já compiladas (.a, .dylib, .xcframework) no repo ==="
-          find . -iname "*.a" -o -iname "*.xcframework" -o -iname "libFEXCore*" 2>/dev/null | grep -v "/.git/"
-          echo "=== Build Phases do projeto Xcode (Run Script) ==="
-          grep -A 3 "shellScript" ./app/Madeira.xcodeproj/project.pbxproj 2>/dev/null | head -60
+          echo "=== Procurando por 'ios' em nomes de arquivos/pastas ==="
+          find ./FEX -iname "*ios*" -not -path "*/.git/*" | head -40
+          echo "=== README do FEX (primeiras 100 linhas) ==="
+          head -100 ./FEX/README.md 2>/dev/null
+          echo "=== Xcode project/workspace dentro do FEX ==="
+          find ./FEX -iname "*.xcodeproj" -o -iname "*.xcworkspace" 2>/dev/null
+          echo "=== xcframework ou libs pré-compiladas em qualquer lugar ==="
+          find . -iname "*.xcframework" -o -iname "libfmt*" -o -iname "libFEXCore*" 2>/dev/null | grep -v "/.git/"
 
       - name: Set Xcode version
         uses: maxim-lobanov/setup-xcode@v1
@@ -61,7 +75,7 @@ jobs:
             BUILD_LIBRARY_FOR_DISTRIBUTION=NO \
             CLANG_CXX_LANGUAGE_STANDARD="gnu++17" \
             CLANG_CXX_LIBRARY="libc++" \
-            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/** $(PWD)/../FEX/FEXCore/include $(PWD)/../FEX/Source $(PWD)/../FEX" \
+            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/** $(PWD)/../FEX/FEXCore/include $(PWD)/../FEX/Source $(PWD)/../FEX $(PWD)/../FEX/External/**" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \

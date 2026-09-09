@@ -16,16 +16,18 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Debug - Find FEXCore
+      - name: Debug - Find FEXCore build system
         run: |
-          echo "=== Procurando FEXCore no repo ==="
-          find . -iname "*FEXCore*" -not -path "*/.git/*" 2>/dev/null
-          echo "=== Procurando Config.h ==="
-          find . -iname "Config.h" -not -path "*/.git/*" 2>/dev/null
-          echo "=== Submódulos declarados ==="
-          cat .gitmodules 2>/dev/null || echo "Sem .gitmodules"
-          echo "=== Packages resolvidos pelo SPM ==="
-          find . -iname "Package.resolved" -exec cat {} \; 2>/dev/null
+          echo "=== CMakeLists.txt no FEX ==="
+          find ./FEX -maxdepth 2 -iname "CMakeLists.txt"
+          echo "=== Scripts de build no FEX ==="
+          find ./FEX -iname "*.sh" -path "*ios*" -o -iname "build*.sh" 2>/dev/null | grep -i fex
+          echo "=== READMEs relevantes ==="
+          find ./FEX -maxdepth 1 -iname "README*"
+          echo "=== Bibliotecas já compiladas (.a, .dylib, .xcframework) no repo ==="
+          find . -iname "*.a" -o -iname "*.xcframework" -o -iname "libFEXCore*" 2>/dev/null | grep -v "/.git/"
+          echo "=== Build Phases do projeto Xcode (Run Script) ==="
+          grep -A 3 "shellScript" ./app/Madeira.xcodeproj/project.pbxproj 2>/dev/null | head -60
 
       - name: Set Xcode version
         uses: maxim-lobanov/setup-xcode@v1
@@ -59,7 +61,7 @@ jobs:
             BUILD_LIBRARY_FOR_DISTRIBUTION=NO \
             CLANG_CXX_LANGUAGE_STANDARD="gnu++17" \
             CLANG_CXX_LIBRARY="libc++" \
-            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/**" \
+            HEADER_SEARCH_PATHS="$(PWD)/Madeira $(PWD)/Madeira/** $(PWD)/../FEX/FEXCore/include $(PWD)/../FEX/Source $(PWD)/../FEX" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \

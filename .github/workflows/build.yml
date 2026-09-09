@@ -579,18 +579,25 @@ jobs:
           unzip -l Madeira.ipa | grep -q "Payload/Madeira.app/Madeira"
           ls -lh Madeira.ipa
 
-      - name: Upload
+      - name: Upload IPA
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Madeira-IPA
+          path: artifacts/Madeira.ipa
+          retention-days: 7
+
+      - name: Upload Build Logs (Em caso de erro ou analise)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Madeira
+          name: Madeira-Build-Logs
           path: |
-            artifacts/Madeira.ipa
             /tmp/fex.log
             wine/build-macos/config.log
             research/dxmt/build-pe/meson-logs/**
             build/ntdll-unix/obj/*.err
             build/win32u-unix/obj/*.err
             build/dxmt-ios/obj/*.err
-          if-no-files-found: warn
-          retention-days: 7
+          if-no-files-found: ignore
+          retention-days: 3

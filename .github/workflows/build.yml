@@ -16,6 +16,17 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Debug - Find FEXCore
+        run: |
+          echo "=== Procurando FEXCore no repo ==="
+          find . -iname "*FEXCore*" -not -path "*/.git/*" 2>/dev/null
+          echo "=== Procurando Config.h ==="
+          find . -iname "Config.h" -not -path "*/.git/*" 2>/dev/null
+          echo "=== Submódulos declarados ==="
+          cat .gitmodules 2>/dev/null || echo "Sem .gitmodules"
+          echo "=== Packages resolvidos pelo SPM ==="
+          find . -iname "Package.resolved" -exec cat {} \; 2>/dev/null
+
       - name: Set Xcode version
         uses: maxim-lobanov/setup-xcode@v1
         with:

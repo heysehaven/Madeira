@@ -22,8 +22,8 @@ jobs:
       - name: Verify Uploaded Resources
         run: |
           cd ./app/Madeira
-          echo "Verificando se os binarios reais existem na pasta:"
-          ls -la x86_64-vcruntime prefix-template.tar.gz || true
+          echo "=== Arquivos na pasta Madeira ==="
+          ls -la
 
       - name: Build App & Package IPA
         run: |
@@ -39,15 +39,24 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            HEADER_SEARCH_PATHS="$(PWD) $(PWD)/Madeira $(PWD)/Madeira/**" \
+            USER_HEADER_SEARCH_PATHS="$(PWD) $(PWD)/Madeira" \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             WARNING_CFLAGS="-w" \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
-            OTHER_SWIFT_FLAGS="-suppress-warnings"
+            OTHER_SWIFT_FLAGS="-suppress-warnings -cxx-interoperability-mode=default" 2>&1 | tee xcodebuild.log || true
 
-          cd build/Build/Products/Release-iphoneos
-          mkdir -p Payload
-          cp -R *.app Payload/
-          zip -r Madeira.ipa Payload
+          if [ -d "build/Build/Products/Release-iphoneos/Madeira.app" ]; then
+            cd build/Build/Products/Release-iphoneos
+            mkdir -p Payload
+            cp -R *.app Payload/
+            zip -r Madeira.ipa Payload
+          else
+            echo "================ MOTIVO EXATO DO ERRO NO C++ / HEADER ================"
+            grep -i -C 3 "error:" xcodebuild.log || tail -n 60 xcodebuild.log
+            echo "======================================================================="
+            exit 1
+          fi
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v5
